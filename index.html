@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StudyMaster Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --color-primary-hue: 231;
+        --color-accent-hue: 262;
+
+        --color-primary: hsl(var(--color-primary-hue) 81% 64%);
+        --color-primary-dark: hsl(265 39% 49%);
+        --color-accent: hsl(var(--color-accent-hue) 81% 64%);
+
+        --text-base: #1f2937;
+        --text-muted: #6b7280;
+        --bg-base: #f8fafc;
+        --bg-card: #ffffff;
+        --border-color: #e5e7eb;
+      }
+      html.dark {
+        --color-primary-dark: hsl(var(--color-primary-hue) 81% 64%);
+        --text-base: #f1f5f9;
+        --text-muted: #94a3b8;
+        --bg-base: #0f172a;
+        --bg-card: #1e293b;
+        --border-color: #334155;
+      }
+       html.contrast {
+        --color-primary: #0000ff;
+        --color-primary-dark: #0000ff;
+        --color-accent: #ff00ff;
+        --text-base: #000000;
+        --text-muted: #000000;
+        --bg-base: #ffffff;
+        --bg-card: #ffffff;
+        --border-color: #000000;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: 'var(--color-primary)',
+                dark: 'var(--color-primary-dark)'
+              },
+              secondary: '#6b7280',
+              success: '#10b981',
+              warning: '#f59e0b',
+              accent: 'var(--color-accent)',
+            },
+            fontFamily: {
+               sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            },
+            backgroundColor: {
+                base: 'var(--bg-base)',
+                card: 'var(--bg-card)',
+            },
+            textColor: {
+                base: 'var(--text-base)',
+                muted: 'var(--text-muted)',
+            },
+            borderColor: {
+                DEFAULT: 'var(--border-color)',
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1"
+  }
+}
+</script>
+</head>
+  <body class="bg-base text-base">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
