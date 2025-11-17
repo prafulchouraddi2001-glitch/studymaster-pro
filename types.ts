@@ -2,16 +2,33 @@ export type Tab = 'dashboard' | 'roadmap' | 'pomodoro' | 'reminders' | 'notes' |
 export type Theme = 'light' | 'dark' | 'contrast';
 export type AccentColor = 'blue' | 'purple' | 'green' | 'orange' | 'pink';
 
+export type ResourceType = 'Paid Course' | 'Free Course' | 'Article' | 'Video' | 'Documentation' | 'Book' | 'GitHub';
+
+export interface Resource {
+  title: string;
+  url: string;
+  type: ResourceType;
+}
+
 export interface Topic {
   id: string;
   text: string;
   completed: boolean;
+  resources: Resource[];
+}
+
+export interface Phase {
+  id: string;
+  title: string;
+  topics: Topic[];
 }
 
 export interface Course {
   id: string;
   name: string;
-  topics: Topic[];
+  description: string;
+  prerequisites: string[];
+  phases: Phase[];
   tags: string[];
 }
 
@@ -62,6 +79,13 @@ export interface BadgeData {
     description: string;
     icon: string;
 }
+
+export interface AnalyticsProps {
+    theme: Theme;
+    gamificationState: GamificationState;
+    courses: Course[];
+}
+
 
 // New Personal Use Features Types
 export interface Task {

@@ -107,6 +107,19 @@ const Notes: React.FC<NotesProps> = ({ notes, onNotesChange, decks, onDecksChang
         setFlashcardFront(contextMenu.text);
         setIsFlashcardModalOpen(true);
     };
+
+    const handleOpenFeynmanFromSelection = () => {
+        if (!contextMenu) return;
+        const syntheticNote: Note = {
+            id: `selection-${Date.now()}`,
+            title: 'Selected Concept',
+            content: contextMenu.text,
+            lastModified: new Date().toLocaleString(),
+            tags: [],
+        };
+        onOpenFeynmanTutor(syntheticNote);
+        setContextMenu(null);
+    };
     
     const handleSaveFlashcard = (back: string, noteId: string) => {
         const deckIndex = decks.findIndex(d => d.noteId === noteId);
@@ -166,13 +179,14 @@ const Notes: React.FC<NotesProps> = ({ notes, onNotesChange, decks, onDecksChang
             {contextMenu && (
                 <div style={{ top: contextMenu.y, left: contextMenu.x }} className="absolute z-50 bg-card border shadow-lg rounded-md flex" onMouseDown={e => e.stopPropagation()}>
                     <button onClick={handleExplain} className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 rounded-l-md"><ExplainIcon/> Explain</button>
-                    <button onClick={handleCreateFlashcard} className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-md border-l"><FlashcardIcon/> New Card</button>
+                    <button onClick={handleCreateFlashcard} className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 border-l"><FlashcardIcon/> New Card</button>
+                    <button onClick={handleOpenFeynmanFromSelection} className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-md border-l"><BrainIcon/> Feynman</button>
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-base flex items-center gap-3">📝 Study Notes</h1>
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold text-base flex items-center gap-3">📝 Study Notes</h1>
+                <div className="flex gap-2 self-end sm:self-center">
                     <Button onClick={() => setIsImportModalOpen(true)} variant="secondary" className="flex items-center gap-1.5"><UploadIcon /> Import Note</Button>
                     <Button onClick={openModalForNew}>+ Add New Note</Button>
                 </div>

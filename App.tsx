@@ -16,7 +16,7 @@ import ThemeSettings from './components/ThemeSettings';
 import { ChatIcon } from './components/Icons';
 import { continueConversation, generateMindMapFromNote } from './services/geminiService';
 import { generateMLOpsCourses, generateMLOpsReminders } from './data/mlopsPlan';
-import type { Tab, Reminder, Message, Theme, AccentColor, Course, Note, Deck, Task, MindMap } from './types';
+import type { Tab, Reminder, Message, Theme, AccentColor, Course, Note, Deck, Task, MindMap, GamificationState } from './types';
 
 // Generate initial state from the MLOps plan
 const initialCourses = generateMLOpsCourses();
@@ -41,6 +41,13 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [mindMaps, setMindMaps] = useState<MindMap[]>([]);
 
+  // Gamification State
+  const [gamificationState, setGamificationState] = useState<GamificationState>({
+    xp: 125,
+    level: 2,
+    unlockedAchievements: new Set(['firstSession', 'noteMaster']),
+  });
+
   // Theme State
   const [theme, setTheme] = useState<Theme>('light');
   const [accentColor, setAccentColor] = useState<AccentColor>('blue');
@@ -61,6 +68,35 @@ const App: React.FC = () => {
     root.style.setProperty('--color-primary-hue', String(ACCENT_HUES[accentColor]));
     root.style.setProperty('--color-accent-hue', String(ACCENT_HUES[accentColor]));
   }, [theme, accentColor]);
+
+  // New useEffect to handle loading a shared roadmap from a URL
+  useEffect(() => {
+    try {
+        const hash = window.location.hash;
+        if (hash.startsWith('#roadmap-')) {
+            const encodedData = hash.substring('#roadmap-'.length);
+            // Use a robust base64 decoding method for UTF-8 characters
+            const decodedData = decodeURIComponent(escape(atob(encodedData)));
+            const sharedCourses: Course[] = JSON.parse(decodedData);
+
+            if (Array.isArray(sharedCourses) && sharedCourses.every(c => 'id' in c && 'name' in c && 'phases' in c)) {
+                setCourses(sharedCourses);
+                setActiveTab('roadmap');
+                // Use a more subtle notification than an alert in a real app, but alert is fine here.
+                alert('Study roadmap loaded from shared link!');
+                
+                // Clean up URL hash for a cleaner user experience
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            } else {
+                throw new Error("Invalid roadmap data structure.");
+            }
+        }
+    } catch (error) {
+        console.error("Failed to load shared roadmap from URL:", error);
+        alert("Could not load the shared roadmap. The link may be invalid or corrupted.");
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []); // Empty dependency array ensures this runs only once on component mount
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab);
@@ -136,7 +172,7 @@ const App: React.FC = () => {
       case 'notes':
         return <Notes notes={notes} onNotesChange={handleSetNotes} decks={decks} onDecksChange={handleSetDecks} onGenerateMindMap={handleGenerateMindMap} onOpenFeynmanTutor={setFeynmanNote} />;
       case 'analytics':
-        return <Analytics theme={theme}/>;
+        return <Analytics theme={theme} gamificationState={gamificationState} courses={courses} />;
       case 'calendar':
         return <Calendar reminders={reminders} onAddReminder={handleAddReminder} />;
       case 'flashcards':
@@ -153,7 +189,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen font-sans bg-base text-base">
       <Navigation activeTab={activeTab} onTabChange={handleTabChange} onOpenSettings={() => setIsSettingsOpen(true)} />
-      <main className="pt-24 md:pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+      <main className="pt-20 max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pb-10">
         {renderContent()}
       </main>
       

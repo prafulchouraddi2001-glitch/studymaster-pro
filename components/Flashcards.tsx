@@ -85,15 +85,15 @@ const Flashcards: React.FC<FlashcardsProps> = ({ decks, onDecksChange }) => {
     if (activeDeck && currentCard) {
         return (
             <div className="flex flex-col items-center">
-                 <h2 className="text-2xl font-bold mb-4">Reviewing: {activeDeck.name}</h2>
+                 <h2 className="text-2xl font-bold mb-4 text-center">Reviewing: {activeDeck.name}</h2>
                  <p className="text-muted mb-4">{currentCardIndex + 1} / {reviewQueue.length} cards due</p>
                 <div 
-                    className="w-full max-w-xl h-80 perspective-1000 cursor-pointer"
+                    className="w-full max-w-xl h-64 sm:h-80 perspective-1000 cursor-pointer"
                     onClick={() => setIsFlipped(!isFlipped)}
                 >
                     <div className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-                        <div className="absolute w-full h-full backface-hidden"><Card className="w-full h-full flex items-center justify-center text-2xl p-4 text-center">{currentCard.front}</Card></div>
-                        <div className="absolute w-full h-full backface-hidden rotate-y-180"><Card className="w-full h-full flex items-center justify-center text-xl p-4 text-center">{currentCard.back}</Card></div>
+                        <div className="absolute w-full h-full backface-hidden"><Card className="w-full h-full flex items-center justify-center text-xl sm:text-2xl p-4 text-center">{currentCard.front}</Card></div>
+                        <div className="absolute w-full h-full backface-hidden rotate-y-180"><Card className="w-full h-full flex items-center justify-center text-lg sm:text-xl p-4 text-center">{currentCard.back}</Card></div>
                     </div>
                 </div>
                 {isFlipped && (
@@ -110,7 +110,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ decks, onDecksChange }) => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-base mb-6 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-base mb-6 flex items-center gap-3">
                 🗂️ Flashcard Decks
             </h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

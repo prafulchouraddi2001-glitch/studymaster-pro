@@ -178,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onTabChange, tasks, onTasksChange
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-base mb-6 flex items-center gap-3">
+      <h1 className="text-2xl sm:text-3xl font-bold text-base mb-6 flex items-center gap-3">
         📊 Dashboard
       </h1>
         

@@ -177,19 +177,19 @@ const Calendar: React.FC<CalendarProps> = ({ reminders, onAddReminder }) => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-base mb-6 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-base mb-6 flex items-center gap-3">
                 🗓️ Calendar
             </h1>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                     <div className="flex justify-between items-center mb-4">
                         <Button onClick={() => changeMonth(-1)} size="sm" variant="secondary">‹ Prev</Button>
-                        <h2 className="text-xl font-semibold text-base">
+                        <h2 className="text-lg sm:text-xl font-semibold text-base text-center">
                             {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                         </h2>
                         <Button onClick={() => changeMonth(1)} size="sm" variant="secondary">Next ›</Button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-sm">
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs sm:text-sm">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                             <div key={day} className="font-medium text-muted py-2">{day}</div>
                         ))}
@@ -201,29 +201,29 @@ const Calendar: React.FC<CalendarProps> = ({ reminders, onAddReminder }) => {
                             const dailyEvents = reminders.filter(r => new Date(r.date).toDateString() === date.toDateString());
 
                             return (
-                                <div key={day} className="py-1">
+                                <div key={day} className="py-1 flex justify-center">
                                     <button 
                                         onClick={() => setSelectedDate(date)}
-                                        className={`w-10 h-10 rounded-full transition-colors flex flex-col items-center justify-center mx-auto text-base
+                                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-colors flex flex-col items-center justify-center mx-auto text-sm
                                             ${isSelected ? 'bg-primary text-white' : ''} 
                                             ${!isSelected && isToday ? 'bg-primary/20 text-primary font-bold' : ''}
                                             ${!isSelected && !isToday ? 'hover:bg-slate-100 dark:hover:bg-slate-700' : ''}
                                         `}>
                                         <span>{day + 1}</span>
                                         <div className="flex gap-0.5 mt-0.5">
-                                           {dailyEvents.slice(0, 3).map(r => <div key={r.id} className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : (r.type === 'pomodoro' ? 'bg-red-400' : 'bg-accent')}`} />)}
+                                           {dailyEvents.slice(0, 3).map(r => <div key={r.id} className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white' : (r.type === 'pomodoro' ? 'bg-red-400' : 'bg-accent')}`} />)}
                                         </div>
                                     </button>
                                 </div>
                             )
                         })}
                     </div>
-                     <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg flex items-center justify-between">
-                        <div className="text-sm text-muted">
+                     <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="text-sm text-muted text-center sm:text-left">
                             <p className="font-semibold text-base">Stay in Sync!</p>
                             <p>Connect your external calendar to see all your events in one place.</p>
                         </div>
-                        <Button variant="secondary" size="sm" className="flex items-center gap-2"><GoogleIcon/> Sync with Google Calendar</Button>
+                        <Button variant="secondary" size="sm" className="flex items-center gap-2 flex-shrink-0"><GoogleIcon/> Sync with Google Calendar</Button>
                     </div>
                 </Card>
                 <div className="lg:col-span-1">

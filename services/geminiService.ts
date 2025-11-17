@@ -1,49 +1,103 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Quiz, Message, MindMap } from "../types";
+import type { Quiz, Message, MindMap, Resource } from "../types";
 
-export interface StudyPlan {
+export interface GeneratedStudyPlan {
   courseName: string;
-  topics: string[];
+  description: string;
+  prerequisites: string[];
+  phases: {
+    title: string;
+    topics: {
+      text: string;
+      resources: Resource[];
+    }[];
+  }[];
 }
 
-export const generateStudyPlan = async (subject: string): Promise<StudyPlan> => {
+export const generateStudyPlan = async (subject: string): Promise<GeneratedStudyPlan> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const prompt = `Acting as an expert educator, create a detailed, step-by-step study plan for the topic: "${subject}". The plan should be broken down into a list of concise, actionable topics. Provide only the course name and a list of topics.`;
+  const prompt = `Act as an expert curriculum designer. Create a comprehensive, step-by-step study plan for the topic: "${subject}".
+The plan should be broken down into logical weekly phases.
+For each phase, provide a checklist of specific topics or tasks.
+For each topic, research the web and provide 2-4 diverse, high-quality learning resources. Include a variety of types like 'Article', 'Video', 'GitHub' for code examples, 'Documentation', and 'Paid Course' for structured learning.
+
+Provide the following in JSON format:
+1. 'courseName': A professional name for the study plan.
+2. 'description': A brief, motivating overview.
+3. 'prerequisites': A list of essential skills required.
+4. 'phases': An array of weekly phases. Each phase object should contain:
+    a. 'title': A descriptive title for the phase (e.g., "Week 1-2: Core Concepts").
+    b. 'topics': An array of checklist items for that phase. Each topic should include:
+        i. 'text': A concise, actionable description of the topic.
+        ii. 'resources': A list of resources. Each resource must have: 'title', 'url', and 'type' ('Paid Course', 'Video', 'Article', 'GitHub', etc.).`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            courseName: {
-              type: Type.STRING,
-              description: "The name of the course or study plan.",
-            },
-            topics: {
+            courseName: { type: Type.STRING, description: "The name of the course or study plan." },
+            description: { type: Type.STRING, description: "A brief overview of the course." },
+            prerequisites: {
               type: Type.ARRAY,
-              description: "A list of topics to study for the course.",
+              description: "A list of prerequisite skills.",
+              items: { type: Type.STRING },
+            },
+            phases: {
+              type: Type.ARRAY,
+              description: "A list of weekly phases for the study plan.",
               items: {
-                type: Type.STRING,
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING, description: "Title of the phase, e.g., 'Week 1-2'." },
+                  topics: {
+                    type: Type.ARRAY,
+                    description: "A list of topics/tasks for this phase.",
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        text: { type: Type.STRING, description: "The checklist item text." },
+                        resources: {
+                          type: Type.ARRAY,
+                          description: "A list of learning resources for the topic.",
+                          items: {
+                            type: Type.OBJECT,
+                            properties: {
+                              title: { type: Type.STRING },
+                              url: { type: Type.STRING },
+                              type: { 
+                                type: Type.STRING, 
+                                enum: ['Paid Course', 'Free Course', 'Article', 'Video', 'Documentation', 'Book', 'GitHub'] 
+                              },
+                            },
+                            required: ["title", "url", "type"],
+                          },
+                        },
+                      },
+                      required: ["text", "resources"],
+                    },
+                  },
+                },
+                required: ["title", "topics"],
               },
             },
           },
-          required: ["courseName", "topics"],
+          required: ["courseName", "description", "prerequisites", "phases"],
         },
       },
     });
 
     const jsonText = response.text.trim();
-    const studyPlan: StudyPlan = JSON.parse(jsonText);
+    const studyPlan: GeneratedStudyPlan = JSON.parse(jsonText);
     return studyPlan;
   } catch (error) {
     console.error("Error generating study plan:", error);
-    throw new Error("Failed to generate study plan. Please try again.");
+    throw new Error("Failed to generate detailed study plan. The AI may be busy or the topic is too complex. Please try again.");
   }
 };
 
@@ -307,4 +361,46 @@ Text Content: "${content}"`;
         console.error("Error processing imported content:", error);
         throw new Error("Failed to process the imported text.");
     }
+};
+
+export const getPrerequisiteResources = async (skill: string): Promise<Resource[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const prompt = `Act as an expert learning advisor. For the specific skill or prerequisite "${skill}", research and suggest 3-5 high-quality, diverse learning resources. 
+  Include a variety of free resources like Articles, Videos, and official Documentation. If applicable, also include top-rated Paid Courses.
+  
+  Provide the response in JSON format as an array of resource objects. 
+  Each resource object must have a 'title', a valid 'url', and a 'type' from the allowed list.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              url: { type: Type.STRING },
+              type: { 
+                type: Type.STRING, 
+                enum: ['Paid Course', 'Free Course', 'Article', 'Video', 'Documentation', 'Book', 'GitHub'] 
+              },
+            },
+            required: ["title", "url", "type"],
+          },
+        },
+      },
+    });
+
+    const jsonText = response.text.trim();
+    const resources: Resource[] = JSON.parse(jsonText);
+    return resources;
+  } catch (error) {
+    console.error("Error generating prerequisite resources:", error);
+    throw new Error(`Failed to find resources for "${skill}". The AI may be busy, or the topic is too niche. Please try again.`);
+  }
 };

@@ -10,7 +10,9 @@ const ItemCard: React.FC<{ item: TaggedItem }> = ({ item }) => {
     
     if (item.itemType === 'Course') {
         title = (item as Course).name;
-        details = `${(item as Course).topics.length} topics`;
+        // FIX: The Course type has 'phases', which contain 'topics'. This calculates the total topic count.
+        const totalTopics = (item as Course).phases.reduce((sum, phase) => sum + phase.topics.length, 0);
+        details = `${totalTopics} topics`;
     } else if (item.itemType === 'Reminder') {
         title = (item as Reminder).title;
         details = (item as Reminder).date.toLocaleDateString();
@@ -41,7 +43,8 @@ const Tags: React.FC<TagsProps> = ({ allItems }) => {
         const tagSet = new Set<string>();
 
         allItems.forEach(item => {
-            if ('topics' in item) { // Course
+            // FIX: The type guard for Course was incorrect. It should check for 'phases' instead of 'topics'.
+            if ('phases' in item) { // Course
                 item.tags?.forEach(tag => {
                     tagSet.add(tag);
                     const items = tagMap.get(tag) || [];

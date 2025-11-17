@@ -74,7 +74,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, onOpenS
   return (
     <nav className="bg-gradient-to-r from-primary to-primary-dark text-white p-3 fixed top-0 left-0 right-0 z-50 shadow-lg">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <div className="text-xl font-bold whitespace-nowrap">📚 StudyMaster Pro</div>
+        <div className="text-xl font-bold whitespace-nowrap flex items-center gap-2">
+            <span>📚</span>
+            <span className="hidden md:inline">StudyMaster Pro</span>
+        </div>
         <div className="flex items-center gap-1 md:gap-2">
             {mainNavItems.map(item => (
                 <NavButton 
