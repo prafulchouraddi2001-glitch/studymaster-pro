@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import Card from './Card';
 import Button from './Button';
 import Modal from './Modal';
 import { SettingsIcon } from './Icons';
-import type { Reminder, PomodoroSequence } from '../types';
+import type { Reminder, PomodoroSequence, PomodoroSession } from '../types';
 
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -74,9 +75,11 @@ const MusicPlayer: React.FC<{ url: string }> = ({ url }) => {
 
 interface PomodoroProps {
     reminders: Reminder[];
+    history: PomodoroSession[];
+    onSessionComplete: (session: Omit<PomodoroSession, 'id'>) => void;
 }
 
-const Pomodoro: React.FC<PomodoroProps> = ({ reminders }) => {
+const Pomodoro: React.FC<PomodoroProps> = ({ reminders, history, onSessionComplete }) => {
     const [sequences, setSequences] = useState<PomodoroSequence[]>(defaultSequences);
     const [activeSequenceId, setActiveSequenceId] = useState<string>(defaultSequences[0].id);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -104,12 +107,19 @@ const Pomodoro: React.FC<PomodoroProps> = ({ reminders }) => {
     }, [reminders]);
 
     const nextStep = useCallback(() => {
+        if (!isBreak) {
+            onSessionComplete({
+                task: task || 'Untitled Focus Session',
+                duration: currentStep.duration,
+                completedAt: new Date()
+            });
+        }
         const nextIndex = (currentStepIndex + 1) % activeSequence.steps.length;
         setCurrentStepIndex(nextIndex);
         setTimeLeft(activeSequence.steps[nextIndex].duration * 60);
         setIsActive(false);
         setBreakActivity(null);
-    }, [currentStepIndex, activeSequence]);
+    }, [currentStepIndex, activeSequence, isBreak, onSessionComplete, task, currentStep.duration]);
 
     useEffect(() => {
         let interval: number | null = null;
@@ -153,6 +163,23 @@ const Pomodoro: React.FC<PomodoroProps> = ({ reminders }) => {
         shortBreak: { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-800 dark:text-blue-200', button: 'bg-blue-500 hover:bg-blue-600', label: 'Short Break' },
         longBreak: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-800 dark:text-green-200', button: 'bg-green-500 hover:bg-green-600', label: 'Long Break' },
     }[currentStep.type]), [currentStep]);
+
+    const usageData = useMemo(() => {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const dailyTotals = Array(7).fill(0);
+
+        history.forEach(session => {
+            const sessionDate = new Date(session.completedAt);
+            const diffDays = Math.floor((today.getTime() - sessionDate.getTime()) / (1000 * 3600 * 24));
+            if (diffDays < 7) {
+                const dayIndex = sessionDate.getDay();
+                dailyTotals[dayIndex] += session.duration;
+            }
+        });
+
+        return days.map((day, index) => ({ name: day, minutes: dailyTotals[index] }));
+    }, [history]);
 
     return (
         <div className="flex flex-col items-center">
@@ -207,6 +234,36 @@ const Pomodoro: React.FC<PomodoroProps> = ({ reminders }) => {
                 {!isBreak && <MusicPlayer url={playlistUrl} />}
             </Card>
 
+            <Card className="w-full max-w-2xl mt-8">
+                <h3 className="text-lg font-semibold text-base mb-4">📊 Usage Analytics</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 className="font-medium text-base mb-2">Focus Time (Last 7 Days)</h4>
+                        <div className="h-48">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={usageData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+                                    <YAxis stroke="var(--text-muted)" fontSize={12} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)'}}/>
+                                    <Bar dataKey="minutes" fill="var(--color-primary)" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                     <div>
+                        <h4 className="font-medium text-base mb-2">Recent Sessions</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                            {history.length > 0 ? history.slice(0, 10).map(s => (
+                                <div key={s.id} className="text-sm p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md flex justify-between">
+                                    <span className="font-medium text-base truncate pr-2">{s.task}</span>
+                                    <span className="text-muted flex-shrink-0">{s.duration} min</span>
+                                </div>
+                            )) : <p className="text-muted text-sm text-center pt-8">No completed sessions yet.</p>}
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} currentSequences={sequences} activeSequenceId={activeSequenceId} playlistUrl={playlistUrl} onSave={handleSaveSettings} />
         </div>
     );
@@ -233,7 +290,10 @@ const SettingsModal: React.FC<{
         }
     }, [isOpen, currentSequences, activeSequenceId, playlistUrl]);
 
-    const handleSave = () => onSave(tempSequences, tempActiveId, tempPlaylistUrl);
+    const handleSave = () => {
+        onSave(tempSequences, tempActiveId, tempPlaylistUrl);
+        onClose();
+    };
     
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Pomodoro Settings">

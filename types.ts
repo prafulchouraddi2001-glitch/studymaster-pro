@@ -139,3 +139,18 @@ export interface MindMap {
   nodes: MindMapNode[];
   edges: MindMapEdge[];
 }
+
+export interface PomodoroSession {
+    id: string;
+    task: string;
+    duration: number; // in minutes
+    completedAt: Date;
+}
+
+export interface WidgetLayout {
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}

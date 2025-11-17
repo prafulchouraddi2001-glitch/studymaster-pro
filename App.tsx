@@ -16,7 +16,7 @@ import ThemeSettings from './components/ThemeSettings';
 import { ChatIcon } from './components/Icons';
 import { continueConversation, generateMindMapFromNote } from './services/geminiService';
 import { generateMLOpsCourses, generateMLOpsReminders } from './data/mlopsPlan';
-import type { Tab, Reminder, Message, Theme, AccentColor, Course, Note, Deck, Task, MindMap, GamificationState } from './types';
+import type { Tab, Reminder, Message, Theme, AccentColor, Course, Note, Deck, Task, MindMap, GamificationState, PomodoroSession, WidgetLayout } from './types';
 
 // Generate initial state from the MLOps plan
 const initialCourses = generateMLOpsCourses();
@@ -30,6 +30,16 @@ const ACCENT_HUES: Record<AccentColor, number> = {
     pink: 330,
 };
 
+const initialLayout: WidgetLayout[] = [
+    { id: 'stats', x: 0, y: 0, w: 4, h: 1 },
+    { id: 'quickActions', x: 0, y: 1, w: 1, h: 2 },
+    { id: 'tasks', x: 1, y: 1, w: 2, h: 2 },
+    { id: 'pomodoro', x: 3, y: 1, w: 1, h: 1 },
+    { id: 'quote', x: 3, y: 2, w: 1, h: 1 },
+    { id: 'schedule', x: 0, y: 3, w: 4, h: 1 },
+];
+
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   
@@ -40,6 +50,9 @@ const App: React.FC = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [mindMaps, setMindMaps] = useState<MindMap[]>([]);
+  const [pomodoroHistory, setPomodoroHistory] = useState<PomodoroSession[]>([]);
+  const [widgetLayout, setWidgetLayout] = useState<WidgetLayout[]>(initialLayout);
+
 
   // Gamification State
   const [gamificationState, setGamificationState] = useState<GamificationState>({
@@ -136,6 +149,11 @@ const App: React.FC = () => {
   const handleSetDecks = (newDecks: Deck[]) => setDecks(newDecks);
   const handleSetTasks = (newTasks: Task[]) => setTasks(newTasks);
 
+  const handlePomodoroSessionComplete = (session: Omit<PomodoroSession, 'id'>) => {
+    const newSession: PomodoroSession = { ...session, id: `pomo-hist-${Date.now()}`};
+    setPomodoroHistory(prev => [newSession, ...prev]);
+  };
+
   const handleSendChatMessage = async (message: string) => {
       const userMessage: Message = { role: 'user', parts: [{ text: message }] };
       const newHistory = [...chatHistory, userMessage];
@@ -162,11 +180,18 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onTabChange={handleTabChange} tasks={tasks} onTasksChange={handleSetTasks} />;
+        return <Dashboard 
+                    onTabChange={handleTabChange} 
+                    tasks={tasks} 
+                    onTasksChange={handleSetTasks} 
+                    widgetLayout={widgetLayout}
+                    onWidgetLayoutChange={setWidgetLayout}
+                    onPomodoroSessionComplete={handlePomodoroSessionComplete}
+                />;
       case 'roadmap':
         return <Roadmap courses={courses} onCoursesChange={handleSetCourses} />;
       case 'pomodoro':
-        return <Pomodoro reminders={reminders} />;
+        return <Pomodoro reminders={reminders} onSessionComplete={handlePomodoroSessionComplete} history={pomodoroHistory} />;
       case 'reminders':
         return <Reminders reminders={reminders} onAdd={handleAddReminder} onToggle={handleToggleReminder} onDelete={handleDeleteReminder} />;
       case 'notes':
@@ -182,7 +207,14 @@ const App: React.FC = () => {
       case 'mindmap':
         return <MindMapViewer mindMaps={mindMaps} />;
       default:
-        return <Dashboard onTabChange={handleTabChange} tasks={tasks} onTasksChange={handleSetTasks} />;
+        return <Dashboard 
+                    onTabChange={handleTabChange} 
+                    tasks={tasks} 
+                    onTasksChange={handleSetTasks}
+                    widgetLayout={widgetLayout}
+                    onWidgetLayoutChange={setWidgetLayout}
+                    onPomodoroSessionComplete={handlePomodoroSessionComplete}
+                />;
     }
   };
 

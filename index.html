@@ -39,6 +39,13 @@
         --bg-card: #ffffff;
         --border-color: #000000;
       }
+      @keyframes jiggle {
+        0%, 100% { transform: rotate(-1deg); }
+        50% { transform: rotate(1deg); }
+      }
+      .jiggle {
+        animation: jiggle 0.2s infinite;
+      }
     </style>
     <script>
       tailwind.config = {
