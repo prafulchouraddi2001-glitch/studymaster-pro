@@ -13,7 +13,8 @@ import MindMapViewer from './components/MindMapViewer';
 import FeynmanTutor from './components/FeynmanTutor';
 import AICompanion from './components/AICompanion';
 import ThemeSettings from './components/ThemeSettings';
-import { ChatIcon } from './components/Icons';
+import ApiKeyPrompt from './components/ApiKeyPrompt';
+import { ChatIcon, SpinnerIcon } from './components/Icons';
 import { continueConversation, generateMindMapFromNote } from './services/geminiService';
 import { generateMLOpsCourses, generateMLOpsReminders } from './data/mlopsPlan';
 import type { Tab, Reminder, Message, Theme, AccentColor, Course, Note, Deck, Task, MindMap, GamificationState, PomodoroSession, WidgetLayout } from './types';
@@ -56,6 +57,9 @@ const App: React.FC = () => {
   const [pomodoroHistory, setPomodoroHistory] = useState<PomodoroSession[]>([]);
   const [widgetLayout, setWidgetLayout] = useState<WidgetLayout[]>(initialLayout);
 
+  // API Key State
+  const [isApiKeySet, setIsApiKeySet] = useState(false);
+  const [isApiCheckLoading, setIsApiCheckLoading] = useState(true);
 
   // Gamification State
   const [gamificationState, setGamificationState] = useState<GamificationState>({
@@ -85,23 +89,39 @@ const App: React.FC = () => {
     root.style.setProperty('--color-accent-hue', String(ACCENT_HUES[accentColor]));
   }, [theme, accentColor]);
 
+  // Check for API Key on startup
+  useEffect(() => {
+    const checkApiKey = async () => {
+        try {
+            if ((window as any).aistudio) {
+                const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+                setIsApiKeySet(hasKey);
+            } else {
+                setIsApiKeySet(false);
+            }
+        } catch (error) {
+            console.error("Error checking for API key:", error);
+            setIsApiKeySet(false);
+        } finally {
+            setIsApiCheckLoading(false);
+        }
+    };
+    checkApiKey();
+  }, []);
+
   // New useEffect to handle loading a shared roadmap from a URL
   useEffect(() => {
     try {
         const hash = window.location.hash;
         if (hash.startsWith('#roadmap-')) {
             const encodedData = hash.substring('#roadmap-'.length);
-            // Use a robust base64 decoding method for UTF-8 characters
             const decodedData = decodeURIComponent(escape(atob(encodedData)));
             const sharedCourses: Course[] = JSON.parse(decodedData);
 
             if (Array.isArray(sharedCourses) && sharedCourses.every(c => 'id' in c && 'name' in c && 'phases' in c)) {
                 setCourses(sharedCourses);
                 setActiveTab('roadmap');
-                // Use a more subtle notification than an alert in a real app, but alert is fine here.
                 alert('Study roadmap loaded from shared link!');
-                
-                // Clean up URL hash for a cleaner user experience
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
             } else {
                 throw new Error("Invalid roadmap data structure.");
@@ -112,7 +132,21 @@ const App: React.FC = () => {
         alert("Could not load the shared roadmap. The link may be invalid or corrupted.");
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-  }, []); // Empty dependency array ensures this runs only once on component mount
+  }, []);
+
+  const handleSelectApiKey = async () => {
+    try {
+        if ((window as any).aistudio) {
+            await (window as any).aistudio.openSelectKey();
+            setIsApiKeySet(true); 
+        } else {
+            alert("API key selection is not available in this environment.");
+        }
+    } catch (error) {
+        console.error("Error opening API key selection:", error);
+        alert("There was an error while trying to select the API key.");
+    }
+  };
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab);
@@ -122,7 +156,6 @@ const App: React.FC = () => {
     try {
         const existingMap = mindMaps.find(m => m.noteId === note.id);
         if (existingMap && window.confirm('A mind map for this note already exists. Do you want to regenerate it?')) {
-            // Regeneration logic
         }
         const newMapData = await generateMindMapFromNote(note.title, note.content);
         const newMap: MindMap = { ...newMapData, noteId: note.id, noteTitle: note.title };
@@ -143,7 +176,6 @@ const App: React.FC = () => {
     setReminders(prev => [newReminder, ...prev].sort((a, b) => a.date.getTime() - b.date.getTime()));
   };
   
-  // Handlers for all state
   const handleToggleReminder = (id: string) => setReminders(prev => prev.map(rem => rem.id === id ? { ...rem, completed: !rem.completed } : rem));
   const handleDeleteReminder = (id: string) => setReminders(prev => prev.filter(rem => rem.id !== id));
   
@@ -222,6 +254,18 @@ const App: React.FC = () => {
                 />;
     }
   };
+  
+  if (isApiCheckLoading) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-base text-primary">
+            <SpinnerIcon />
+        </div>
+    );
+  }
+
+  if (!isApiKeySet) {
+      return <ApiKeyPrompt onSelectKey={handleSelectApiKey} />;
+  }
 
   return (
     <div className="min-h-screen font-sans bg-base text-base">
