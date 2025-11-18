@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Card from './Card';
 import ProgressBar from './ProgressBar';
 import Button from './Button';
 import Modal from './Modal';
-import { SpinnerIcon, TrophyIcon } from './Icons';
-import { generateWeeklyReport } from '../services/geminiService';
-import type { AnalyticsProps, BadgeData } from '../types';
+import { SpinnerIcon, TrophyIcon, BrainIcon } from './Icons';
+import { generateCoachingReport } from '../services/geminiService';
+import type { AnalyticsProps, BadgeData, PomodoroSession } from '../types';
 
 const weeklyData = [
   { name: 'Mon', hours: 2 }, { name: 'Tue', hours: 3 }, { name: 'Wed', hours: 2.5 },
@@ -21,7 +21,7 @@ const allBadges: BadgeData[] = [
     { id: 'quizWhiz', title: 'Quiz Whiz', description: 'Ace 3 quizzes in a row.', icon: '🧠' },
 ];
 
-const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses }) => {
+const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses, pomodoroHistory }) => {
   const isDark = theme === 'dark';
   const tickColor = isDark ? '#94a3b8' : '#6b7280';
 
@@ -29,13 +29,35 @@ const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses
   const [reportContent, setReportContent] = useState('');
   const [isReportLoading, setIsReportLoading] = useState(false);
 
+  const weeklyStats = useMemo(() => {
+    const today = new Date();
+    const oneWeekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+
+    const recentSessions = pomodoroHistory.filter(s => new Date(s.completedAt) > oneWeekAgo);
+    const totalFocusMinutes = recentSessions.reduce((sum, s) => sum + s.duration, 0);
+    
+    const totalTopics = courses.reduce((sum, course) => sum + course.phases.flatMap(p => p.topics).length, 0);
+    const completedTopics = courses.reduce((sum, course) => sum + course.phases.flatMap(p => p.topics).filter(t => t.completed).length, 0);
+    const totalProgress = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+
+    return {
+        totalFocusMinutes,
+        totalProgress,
+    };
+  }, [pomodoroHistory, courses]);
+
   const handleGenerateReport = async () => {
     setIsReportModalOpen(true);
     setIsReportLoading(true);
     setReportContent('');
     try {
-        const stats = { time: 21.5, tasks: 5, achievements: gamificationState.unlockedAchievements.size };
-        const report = await generateWeeklyReport(stats);
+        const stats = {
+            totalProgress: weeklyStats.totalProgress,
+            totalFocusMinutes: weeklyStats.totalFocusMinutes,
+            achievementsCount: gamificationState.unlockedAchievements.size,
+            level: gamificationState.level,
+        };
+        const report = await generateCoachingReport(stats);
         setReportContent(report);
     } catch (error) {
         setReportContent('Error generating report. Please try again.');
@@ -71,11 +93,10 @@ const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses
     <div>
         <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-base flex items-center gap-3">📈 Analytics</h1>
-            <Button onClick={handleGenerateReport}>Generate Weekly Report</Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <Card className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-base mb-2">Level Progression</h3>
                 <div className="flex items-center gap-4">
                     <div className="text-4xl font-bold text-primary bg-primary/10 rounded-lg w-16 h-16 flex items-center justify-center">{gamificationState.level}</div>
@@ -87,20 +108,26 @@ const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses
                 </div>
             </Card>
             <Card>
-                <h3 className="text-lg font-semibold text-base mb-3 flex items-center gap-2"><TrophyIcon/> Leaderboard</h3>
-                <ul className="space-y-2">
-                    {leaderboardData.map((user, index) => (
-                        <li key={user.name} className={`flex items-center justify-between p-2 rounded-md ${user.name === 'You' ? 'bg-primary/10' : ''}`}>
-                            <div className="flex items-center gap-3">
-                                <span className="font-bold text-sm w-6 text-center">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}</span>
-                                <span className={`font-medium ${user.name === 'You' ? 'text-primary' : 'text-base'}`}>{user.name}</span>
-                            </div>
-                            <span className="font-semibold text-sm text-muted">{user.xp} XP</span>
-                        </li>
-                    ))}
-                </ul>
+                <h3 className="text-lg font-semibold text-base mb-3 flex items-center gap-2"><BrainIcon /> AI Study Coach</h3>
+                <p className="text-sm text-muted mb-4">Get personalized advice based on your weekly performance.</p>
+                <Button onClick={handleGenerateReport} fullWidth>Get Weekly Advice</Button>
             </Card>
         </div>
+
+        <Card className="mb-6">
+            <h3 className="text-lg font-semibold text-base mb-3 flex items-center gap-2"><TrophyIcon/> Leaderboard</h3>
+            <ul className="space-y-2">
+                {leaderboardData.map((user, index) => (
+                    <li key={user.name} className={`flex items-center justify-between p-2 rounded-md ${user.name === 'You' ? 'bg-primary/10' : ''}`}>
+                        <div className="flex items-center gap-3">
+                            <span className="font-bold text-sm w-6 text-center">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}</span>
+                            <span className={`font-medium ${user.name === 'You' ? 'text-primary' : 'text-base'}`}>{user.name}</span>
+                        </div>
+                        <span className="font-semibold text-sm text-muted">{user.xp} XP</span>
+                    </li>
+                ))}
+            </ul>
+        </Card>
 
         <Card className="mb-6">
             <h3 className="text-lg font-semibold text-base mb-4">🏅 Achievements</h3>
@@ -153,7 +180,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ theme, gamificationState, courses
         </div>
 
         <Modal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} title="Your AI-Powered Weekly Review">
-            {isReportLoading && <div className="flex justify-center items-center h-48"><SpinnerIcon /> <span className="text-muted ml-2">Analyzing your week...</span></div>}
+            {isReportLoading && <div className="flex justify-center items-center h-48"><SpinnerIcon /> <span className="text-muted ml-2">Your coach is analyzing your week...</span></div>}
             {reportContent && (
                 <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: reportContent.replace(/\n/g, '<br>') }} />
             )}

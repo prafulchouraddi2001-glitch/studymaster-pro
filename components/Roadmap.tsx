@@ -6,7 +6,9 @@ import Card from './Card';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
 import Modal from './Modal';
-import { SpinnerIcon, TrashIcon, ShareIcon, PrerequisitesIcon, LinkIcon, VideoIcon, CourseIcon, BookIcon, DownArrowIcon, GitHubIcon, BrainIcon, ChartBarIcon } from './Icons';
+import { SpinnerIcon, TrashIcon, ShareIcon, PrerequisitesIcon, LinkIcon, VideoIcon, CourseIcon, BookIcon, DownArrowIcon, GitHubIcon, BrainIcon, ChartBarIcon, SkillTreeIcon } from './Icons';
+
+type RoadmapView = 'list' | 'tree';
 
 const ResourceLink: React.FC<{ resource: Resource }> = ({ resource }) => {
     const Icon = useMemo(() => {
@@ -125,29 +127,111 @@ const CourseItem: React.FC<{ course: Course, onToggleTopic: (courseId: string, p
     );
 };
 
+const SkillTreeView: React.FC<{ course: Course, onToggleTopic: (courseId: string, phaseId: string, topicId: string) => void }> = ({ course, onToggleTopic }) => {
+    const NODE_WIDTH = 180;
+    const NODE_HEIGHT = 60;
+    const PHASE_SPACING = 80;
+    const TOPIC_SPACING = 20;
+
+    const layout = useMemo(() => {
+        let x = 0;
+        const nodes: any[] = [];
+        const edges: any[] = [];
+        const positions: { [id: string]: { x: number, y: number } } = {};
+        
+        const courseNodeId = `course-${course.id}`;
+        nodes.push({ id: courseNodeId, data: { label: course.name, type: 'course' }, position: { x: 0, y: 0 } });
+        positions[courseNodeId] = { x: 0, y: 0 };
+        
+        let lastPhaseNodeId = courseNodeId;
+        let y = 150;
+
+        course.phases.forEach((phase) => {
+            const phaseNodeId = `phase-${phase.id}`;
+            const phaseX = x;
+            nodes.push({ id: phaseNodeId, data: { label: phase.title, type: 'phase' }, position: { x: phaseX, y } });
+            positions[phaseNodeId] = { x: phaseX, y };
+            edges.push({ from: lastPhaseNodeId, to: phaseNodeId });
+            
+            let topicY = y + NODE_HEIGHT + PHASE_SPACING;
+            
+            phase.topics.forEach((topic, topicIndex) => {
+                const topicNodeId = `topic-${topic.id}`;
+                const topicX = phaseX;
+                nodes.push({ id: topicNodeId, data: { ...topic, type: 'topic' }, position: { x: topicX, y: topicY } });
+                positions[topicNodeId] = { x: topicX, y: topicY };
+                edges.push({ from: topicIndex === 0 ? phaseNodeId : `topic-${phase.topics[topicIndex - 1].id}`, to: topicNodeId });
+                topicY += NODE_HEIGHT + TOPIC_SPACING;
+            });
+            
+            lastPhaseNodeId = phaseNodeId;
+            x += NODE_WIDTH + 100;
+            y = 150;
+        });
+        
+        const width = x;
+        const height = Math.max(...Object.values(positions).map(p => p.y)) + NODE_HEIGHT + 20;
+        
+        return { nodes, edges, positions, width, height };
+    }, [course]);
+    
+    return (
+        <Card>
+            <h3 className="text-xl font-semibold text-base mb-4">{course.name} - Skill Tree</h3>
+            <div className="w-full h-[70vh] overflow-auto border rounded-lg bg-slate-50 dark:bg-slate-800/20 p-4">
+                 <svg width={layout.width} height={layout.height} className="min-w-full">
+                    {/* Edges */}
+                    <g>
+                        {layout.edges.map((edge, i) => {
+                            const fromPos = layout.positions[edge.from];
+                            const toPos = layout.positions[edge.to];
+                            if (!fromPos || !toPos) return null;
+                            const path = `M ${fromPos.x + NODE_WIDTH / 2},${fromPos.y + NODE_HEIGHT} L ${toPos.x + NODE_WIDTH / 2},${toPos.y}`;
+                            return <path key={i} d={path} className="skill-tree-connector" />;
+                        })}
+                    </g>
+                    {/* Nodes */}
+                    <g>
+                        {layout.nodes.map(node => {
+                            const { id, data, position } = node;
+                            const isCompleted = data.type === 'topic' && data.completed;
+                            const isCourse = data.type === 'course';
+                            const isPhase = data.type === 'phase';
+                            return (
+                                <g key={id} transform={`translate(${position.x}, ${position.y})`}>
+                                    <foreignObject width={NODE_WIDTH} height={NODE_HEIGHT}>
+                                        <button 
+                                            onClick={() => data.type === 'topic' && onToggleTopic(course.id, data.phaseId, data.id)}
+                                            className={`w-full h-full p-2 rounded-lg text-xs font-semibold overflow-hidden border-2 transition-all duration-300
+                                                ${isCourse ? 'bg-primary text-white border-primary-dark' : ''}
+                                                ${isPhase ? 'bg-accent/10 text-accent border-accent' : ''}
+                                                ${data.type === 'topic' ? (isCompleted ? 'bg-green-500 text-white border-green-600' : 'bg-card text-base hover:border-primary') : ''}
+                                            `}
+                                        >
+                                            {data.label || data.text}
+                                        </button>
+                                    </foreignObject>
+                                </g>
+                            );
+                        })}
+                    </g>
+                </svg>
+            </div>
+        </Card>
+    );
+};
+
+
 const CustomizedTreemapContent = (props: any) => {
     const { root, depth, x, y, width, height, index, colors, name, progress } = props;
 
-    // Determine text color based on background lightness
-    // This is a simple heuristic; a more robust solution would convert hex to HSL
     const bgColor = colors[index % colors.length];
     const isDarkBg = parseInt(bgColor.substring(1, 3), 16) * 0.299 + parseInt(bgColor.substring(3, 5), 16) * 0.587 + parseInt(bgColor.substring(5, 7), 16) * 0.114 < 186;
     const textColor = isDarkBg ? 'white' : 'black';
 
     return (
         <g>
-            <rect
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                style={{
-                    fill: bgColor,
-                    stroke: '#fff',
-                    strokeWidth: 2 / (depth + 1e-10),
-                    strokeOpacity: 1 / (depth + 1e-10),
-                }}
-            />
+            <rect x={x} y={y} width={width} height={height} style={{ fill: bgColor, stroke: '#fff', strokeWidth: 2 / (depth + 1e-10), strokeOpacity: 1 / (depth + 1e-10) }} />
             {width > 80 && height > 50 && (
                 <foreignObject x={x + 4} y={y + 4} width={width - 8} height={height - 8}>
                      <div className="w-full h-full flex flex-col justify-between" style={{ color: textColor, fontSize: '12px' }}>
@@ -183,7 +267,8 @@ interface RoadmapProps {
 const Roadmap: React.FC<RoadmapProps> = ({ courses, onCoursesChange }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isOverviewExpanded, setIsOverviewExpanded] = useState(true);
+    const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
+    const [view, setView] = useState<RoadmapView>('list');
     const [newCourseSubject, setNewCourseSubject] = useState('');
     const [newCourseTags, setNewCourseTags] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -286,7 +371,6 @@ const Roadmap: React.FC<RoadmapProps> = ({ courses, onCoursesChange }) => {
 
     const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f'];
 
-
     return (
         <div>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
@@ -294,6 +378,14 @@ const Roadmap: React.FC<RoadmapProps> = ({ courses, onCoursesChange }) => {
                     🗺️ Study Roadmap
                 </h1>
                 <div className="flex items-center gap-2 self-end sm:self-center">
+                    <div className="flex items-center rounded-lg bg-slate-100 dark:bg-slate-700 p-1">
+                        <button onClick={() => setView('list')} className={`px-3 py-1 text-sm rounded-md flex items-center gap-1.5 ${view === 'list' ? 'bg-white dark:bg-slate-800 shadow-sm' : ''}`}>
+                            &#9776; List
+                        </button>
+                        <button onClick={() => setView('tree')} className={`px-3 py-1 text-sm rounded-md flex items-center gap-1.5 ${view === 'tree' ? 'bg-white dark:bg-slate-800 shadow-sm' : ''}`}>
+                            <SkillTreeIcon /> Tree
+                        </button>
+                    </div>
                     <Button onClick={() => setIsShareModalOpen(true)} variant="secondary" className="flex items-center gap-2">
                         <ShareIcon />
                         <span className="hidden md:inline">Share</span>
@@ -335,7 +427,13 @@ const Roadmap: React.FC<RoadmapProps> = ({ courses, onCoursesChange }) => {
             <div className="space-y-6">
                 {courses.length > 0 ? (
                     courses.map(course => (
-                        <CourseItem key={course.id} course={course} onToggleTopic={handleToggleTopic} onDeleteCourse={handleDeleteCourse} onPrerequisiteClick={handleGetPrereqResources} />
+                         <div key={course.id}>
+                            {view === 'list' ? (
+                                <CourseItem course={course} onToggleTopic={handleToggleTopic} onDeleteCourse={handleDeleteCourse} onPrerequisiteClick={handleGetPrereqResources} />
+                            ) : (
+                                <SkillTreeView course={course} onToggleTopic={handleToggleTopic} />
+                            )}
+                        </div>
                     ))
                 ) : (
                     <Card>

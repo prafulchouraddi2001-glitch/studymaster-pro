@@ -42,12 +42,20 @@ export interface Reminder {
     tags: string[];
 }
 
+export interface NoteVersion {
+    content: string;
+    timestamp: string;
+}
+
 export interface Note {
     id:string;
     title: string;
     content: string;
     lastModified: string;
     tags: string[];
+    audioUrl?: string;
+    audioSummaryUrl?: string;
+    history?: NoteVersion[];
 }
 
 export interface QuizQuestion {
@@ -84,6 +92,7 @@ export interface AnalyticsProps {
     theme: Theme;
     gamificationState: GamificationState;
     courses: Course[];
+    pomodoroHistory: PomodoroSession[];
 }
 
 

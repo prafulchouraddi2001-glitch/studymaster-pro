@@ -31,7 +31,10 @@ const ACCENT_HUES: Record<AccentColor, number> = {
 };
 
 const initialLayout: WidgetLayout[] = [
-    { id: 'stats', x: 0, y: 0, w: 4, h: 1 },
+    { id: 'studyTime', x: 0, y: 0, w: 1, h: 1 },
+    { id: 'studyStreak', x: 1, y: 0, w: 1, h: 1 },
+    { id: 'activeCourses', x: 2, y: 0, w: 1, h: 1 },
+    { id: 'goal', x: 3, y: 0, w: 1, h: 1 },
     { id: 'quickActions', x: 0, y: 1, w: 1, h: 2 },
     { id: 'tasks', x: 1, y: 1, w: 2, h: 2 },
     { id: 'pomodoro', x: 3, y: 1, w: 1, h: 1 },
@@ -181,6 +184,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard 
+                    courses={courses}
                     onTabChange={handleTabChange} 
                     tasks={tasks} 
                     onTasksChange={handleSetTasks} 
@@ -197,7 +201,7 @@ const App: React.FC = () => {
       case 'notes':
         return <Notes notes={notes} onNotesChange={handleSetNotes} decks={decks} onDecksChange={handleSetDecks} onGenerateMindMap={handleGenerateMindMap} onOpenFeynmanTutor={setFeynmanNote} />;
       case 'analytics':
-        return <Analytics theme={theme} gamificationState={gamificationState} courses={courses} />;
+        return <Analytics theme={theme} gamificationState={gamificationState} courses={courses} pomodoroHistory={pomodoroHistory} />;
       case 'calendar':
         return <Calendar reminders={reminders} onAddReminder={handleAddReminder} />;
       case 'flashcards':
@@ -208,6 +212,7 @@ const App: React.FC = () => {
         return <MindMapViewer mindMaps={mindMaps} />;
       default:
         return <Dashboard 
+                    courses={courses}
                     onTabChange={handleTabChange} 
                     tasks={tasks} 
                     onTasksChange={handleSetTasks}

@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import type { Quiz, Message, MindMap, Resource } from "../types";
 
 export interface GeneratedStudyPlan {
@@ -209,7 +209,6 @@ export const continueConversation = async (
   }
 };
 
-// FIX: Corrected a malformed try-catch block that was causing a syntax error.
 export const explainConcept = async (concept: string): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Please explain the following concept in a simple and easy-to-understand way. Use an analogy if it helps.
@@ -228,20 +227,29 @@ Concept: "${concept}"`;
     }
 };
 
-// FIX: Corrected an incomplete GoogleGenAI constructor call. The code was mangled with the function above.
-export const generateWeeklyReport = async (stats: { time: number, tasks: number, achievements: number }): Promise<string> => {
+export const generateCoachingReport = async (stats: {
+  totalProgress: number;
+  totalFocusMinutes: number;
+  achievementsCount: number;
+  level: number;
+}): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Based on the following weekly study statistics, generate a friendly and motivational "Weekly Review" report in Markdown format. The report should include:
-1.  A positive opening.
-2.  A summary of the stats provided.
-3.  An encouraging observation about their progress.
-4.  One actionable suggestion for the upcoming week.
+    const prompt = `Act as an AI Study Coach. Based on the user's study analytics for the past week, generate a friendly, motivational, and actionable report in Markdown format.
 
-Stats:
-- Total Study Time: ${stats.time} hours
-- Tasks Completed: ${stats.tasks}
-- Achievements Unlocked: ${stats.achievements}
-`;
+The report should:
+1.  Start with a positive and encouraging opening.
+2.  Briefly summarize their key stats.
+3.  Provide one specific, insightful observation based on their data (e.g., "Great job on making progress in your courses!").
+4.  Offer one concrete, actionable piece of advice for the upcoming week to help them improve or maintain momentum.
+5.  End with a motivational closing statement.
+
+User's Weekly Stats:
+- Average Course Completion: ${stats.totalProgress.toFixed(1)}%
+- Total Pomodoro Focus Time: ${stats.totalFocusMinutes} minutes
+- New Achievements Unlocked: ${stats.achievementsCount}
+- Current Level: ${stats.level}
+
+Keep the tone supportive and helpful, like a real coach.`;
 
     try {
         const response = await ai.models.generateContent({
@@ -250,10 +258,11 @@ Stats:
         });
         return response.text.trim();
     } catch (error) {
-        console.error("Error generating report:", error);
-        throw new Error("Failed to generate weekly report.");
+        console.error("Error generating coaching report:", error);
+        throw new Error("Failed to generate AI coaching report.");
     }
 };
+
 
 export const generateMindMapFromNote = async (noteTitle: string, noteContent: string): Promise<Omit<MindMap, 'noteId' | 'noteTitle'>> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -403,4 +412,37 @@ export const getPrerequisiteResources = async (skill: string): Promise<Resource[
     console.error("Error generating prerequisite resources:", error);
     throw new Error(`Failed to find resources for "${skill}". The AI may be busy, or the topic is too niche. Please try again.`);
   }
+};
+
+export const generateAudioSummary = async (noteContent: string): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const cleanContent = noteContent.replace(/<[^>]*>?/gm, ' ');
+
+    const prompt = `First, create a concise, one-paragraph summary of the following note. Then, format the summary as a friendly, spoken-word message. For example, start with "Here's a quick summary of your note:". 
+    
+    Note Content: "${cleanContent}"`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: 'Kore' },
+                    },
+                },
+            },
+        });
+        
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!base64Audio) {
+            throw new Error("No audio data returned from API.");
+        }
+        return base64Audio;
+    } catch (error) {
+        console.error("Error generating audio summary:", error);
+        throw new Error("Failed to generate audio summary.");
+    }
 };

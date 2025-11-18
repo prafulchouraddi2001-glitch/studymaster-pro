@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import type { Tab, Task, WidgetLayout, PomodoroSession } from '../types';
+import type { Tab, Task, WidgetLayout, PomodoroSession, Course } from '../types';
 import Card from './Card';
 import Button from './Button';
 import { EditIcon, TrashIcon, QuoteIcon, GripVerticalIcon, ResizeIcon, CheckIcon } from './Icons';
 
 // --- WIDGETS ---
 const StatCard: React.FC<{ title: string; value: string; change?: string; valueColor?: string; changeColor?: string; }> = ({ title, value, change, valueColor = 'text-blue-500', changeColor = 'text-green-500' }) => (
-  <Card className="h-full">
+  <Card className="h-full flex flex-col justify-center">
     <h3 className="text-sm font-medium text-muted">{title}</h3>
     <p className={`text-3xl font-bold mt-1 ${valueColor}`}>{value}</p>
     {change && <p className={`text-xs mt-1 ${changeColor}`}>{change}</p>}
@@ -110,7 +110,7 @@ const PomodoroWidget: React.FC<{ onSessionComplete: (session: Omit<PomodoroSessi
     useEffect(() => {
         let interval: number | null = null;
         if (isActive && timeLeft > 0) {
-            interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+            interval = window.setInterval(() => setTimeLeft(prev => prev - 1), 1000);
         } else if (isActive && timeLeft === 0) {
             onSessionComplete({ task: 'Dashboard Focus', duration: 25, completedAt: new Date() });
             setIsActive(false);
@@ -153,6 +153,7 @@ const QuoteWidget: React.FC = () => {
 
 // --- DASHBOARD COMPONENT ---
 interface DashboardProps {
+    courses: Course[];
     onTabChange: (tab: Tab) => void;
     tasks: Task[];
     onTasksChange: (tasks: Task[]) => void;
@@ -161,15 +162,29 @@ interface DashboardProps {
     onPomodoroSessionComplete: (session: Omit<PomodoroSession, 'id'>) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { onTabChange, tasks, onTasksChange, widgetLayout, onWidgetLayoutChange, onPomodoroSessionComplete } = props;
+const Dashboard: React.FC<DashboardProps> = ({ courses, onTabChange, tasks, onTasksChange, widgetLayout, onWidgetLayoutChange, onPomodoroSessionComplete }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   
   // Resizing state
   const [resizingWidget, setResizingWidget] = useState<{ id: string; initialW: number; initialH: number; initialX: number; initialY: number; } | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+        setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const activeCoursesCount = useMemo(() => {
+    return courses.filter(course => 
+        course.phases.flatMap(phase => phase.topics).some(topic => !topic.completed)
+    ).length;
+  }, [courses]);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
     setDraggedWidgetId(id);
@@ -213,9 +228,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingWidget || !gridRef.current) return;
 
+      const isCurrentlyMobile = window.innerWidth < 768;
+      const gridColumns = isCurrentlyMobile ? 1 : 4;
       const gridGap = 24; // Corresponds to gap-6 in Tailwind
-      const gridCellWidth = (gridRef.current.offsetWidth - (3 * gridGap)) / 4;
-      const gridCellHeight = 120 + gridGap; // 120px from auto-rows-[120px] + gap
+
+      const gridCellWidth = (gridRef.current.offsetWidth - ((gridColumns - 1) * gridGap)) / gridColumns;
+      const gridCellHeight = 120 + gridGap;
 
       const dx = e.clientX - resizingWidget.initialX;
       const dy = e.clientY - resizingWidget.initialY;
@@ -223,7 +241,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       const dw = Math.round(dx / gridCellWidth);
       const dh = Math.round(dy / gridCellHeight);
 
-      const newW = Math.max(1, Math.min(4, resizingWidget.initialW + dw));
+      const newW = Math.max(1, Math.min(gridColumns, resizingWidget.initialW + dw));
       const newH = Math.max(1, Math.min(4, resizingWidget.initialH + dh));
 
       const newLayout = widgetLayout.map(w =>
@@ -249,14 +267,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
 
   const widgets: Record<string, React.ReactNode> = {
-      stats: (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-full">
-            <StatCard title="Today's Study Time" value="2h 30m" change="+25%" />
-            <StatCard title="Study Streak" value="7 days" valueColor="text-warning" />
-            <StatCard title="Active Courses" value="4" valueColor="text-accent" />
-            <GoalWidget />
-        </div>
-      ),
+      studyTime: <StatCard title="Today's Study Time" value="2h 30m" change="+25%" />,
+      studyStreak: <StatCard title="Study Streak" value="7 days" valueColor="text-orange-500" />,
+      activeCourses: <StatCard title="Active Courses" value={String(activeCoursesCount)} valueColor="text-accent" />,
+      goal: <GoalWidget />,
       quickActions: <QuickActionsWidget onTabChange={onTabChange} />,
       tasks: <TasksWidget tasks={tasks} onTasksChange={onTasksChange} />,
       schedule: <ScheduleWidget />,
@@ -266,22 +280,22 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-base flex items-center gap-3">
             📊 Dashboard
         </h1>
-        <Button onClick={() => setIsEditing(!isEditing)} variant={isEditing ? 'primary' : 'secondary'} size="sm" className="flex items-center gap-2">
+        <Button onClick={() => setIsEditing(!isEditing)} variant={isEditing ? 'primary' : 'secondary'} size="sm" className="flex items-center gap-2 self-end sm:self-auto">
             {isEditing ? <><CheckIcon /> Done</> : <><EditIcon /> Edit Layout</>}
         </Button>
       </div>
         
-      <div ref={gridRef} className="grid grid-cols-4 gap-6 auto-rows-[120px]">
+      <div ref={gridRef} className={`grid gap-6 auto-rows-[120px] ${isMobile ? 'grid-cols-1' : 'md:grid-cols-4'}`}>
           {widgetLayout.map(w => (
              <div 
                 key={w.id} 
                 className={`relative group transition-all duration-300 ${isEditing ? 'rounded-xl ring-2 ring-primary ring-dashed' : ''} ${draggedWidgetId === w.id ? 'opacity-50' : ''}`}
                 style={{
-                    gridColumn: `span ${w.w}`,
+                    gridColumn: !isMobile ? `span ${w.w}` : undefined,
                     gridRow: `span ${w.h}`,
                 }}
                 draggable={isEditing}
